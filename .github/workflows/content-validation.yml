@@ -1,0 +1,40 @@
+name: Validate repository content
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate YAML
+        run: npx --yes yaml-lint@1.7.0 '**/*.{yaml,yml}'
+
+      - name: Validate Markdown
+        run: npx --yes markdownlint-cli@0.45.0 '**/*.md' --disable MD013 MD041 MD047
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.7
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          base_url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          curl --fail --location --silent --show-error --remote-name "${base_url}/${archive}"
+          curl --fail --location --silent --show-error --remote-name "${base_url}/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          tar --extract --gzip --file "${archive}" actionlint
+          sudo install actionlint /usr/local/bin/actionlint
+
+      - name: Validate GitHub Actions workflows
+        run: actionlint
